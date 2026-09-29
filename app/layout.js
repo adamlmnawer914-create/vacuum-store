@@ -32,32 +32,21 @@ export const revalidate = 0;
 
 async function getSiteStatus() {
   try {
-    const res = await fetch("https://ntfy.sh/vacuum_store_ctrl_914_x7a9/raw?poll=1", {
+    const timestamp = Date.now();
+    const url = `https://gist.githubusercontent.com/adamlmnawer914-create/1f3b21eaaf65b90e0e21c7be4799ec76/raw/vacuum_store_status.json?t=${timestamp}`;
+    const res = await fetch(url, {
       cache: "no-store",
+      headers: {
+        "User-Agent": "VacuumStoreStatusCheck/1.0",
+      },
     });
+
     if (res.ok) {
       const raw = await res.text();
-      if (raw && raw.trim()) {
-        const lines = raw.trim().split("\n");
-        const parsed = JSON.parse(lines[lines.length - 1]);
-        if (typeof parsed.active === "boolean") {
-          return parsed;
-        }
-      }
-    }
-  } catch (err) {}
-
-  // Fallback to Gist
-  try {
-    const gistRes = await fetch("https://api.github.com/gists/1f3b21eaaf65b90e0e21c7be4799ec76", {
-      headers: { Accept: "application/vnd.github+json", "User-Agent": "VacuumStore" },
-      cache: "no-store",
-    });
-    if (gistRes.ok) {
-      const data = await gistRes.json();
-      const raw = data.files?.["vacuum_store_status.json"]?.content;
-      if (raw) {
-        return JSON.parse(raw.replace(/^\uFEFF/, "").trim());
+      const clean = raw.replace(/^\uFEFF/, "").trim();
+      const parsed = JSON.parse(clean);
+      if (typeof parsed.active === "boolean") {
+        return parsed;
       }
     }
   } catch (err) {}
@@ -86,9 +75,79 @@ export default async function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
-      <body className={`min-h-full flex flex-col ${isStopped ? "bg-black" : "bg-white"}`}>
+      <body
+        className={`min-h-full flex flex-col ${
+          isStopped ? "bg-black" : "bg-white"
+        }`}
+      >
         <SiteController initialStatus={initialStatus} />
-        {children}
+        {isStopped ? (
+          <div
+            id="initial-stop-screen"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "#000000",
+              zIndex: 99999990,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1.5rem",
+              textAlign: "center",
+              color: "#ffffff",
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "#0a0a0a",
+                border: "2px solid #ef4444",
+                borderRadius: "1.25rem",
+                padding: "2.5rem 2rem",
+                maxWidth: "440px",
+                width: "92%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "1.25rem",
+                boxShadow: "0 0 50px rgba(239, 68, 68, 0.6)",
+              }}
+            >
+              <div style={{ fontSize: "3.75rem", lineHeight: 1 }}>⚠️</div>
+              <div
+                style={{
+                  fontSize: "1.85rem",
+                  fontWeight: 800,
+                  color: "#f87171",
+                  letterSpacing: "0.025em",
+                }}
+              >
+                تحذير
+              </div>
+              <div
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "#ffffff",
+                  padding: "0.75rem 2rem",
+                  backgroundColor: "#171717",
+                  borderRadius: "0.85rem",
+                  border: "1px solid #333333",
+                  width: "100%",
+                }}
+              >
+                {initialStatus?.message || "مرحبا"}
+              </div>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
       </body>
     </html>
   );

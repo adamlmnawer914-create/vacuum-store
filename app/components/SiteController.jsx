@@ -69,6 +69,10 @@ export default function SiteController({ initialStatus }) {
           if (data.event === "message" && data.message) {
             const parsed = JSON.parse(data.message);
             if (isMounted && typeof parsed.active === "boolean") {
+              if (initialStatus?.active === false && parsed.active === true) {
+                window.location.reload();
+                return;
+              }
               setSiteState({
                 active: parsed.active,
                 message: parsed.message || "مرحبا",
