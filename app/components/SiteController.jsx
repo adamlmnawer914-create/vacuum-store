@@ -9,6 +9,8 @@ export default function SiteController({ initialStatus }) {
     loaded: true,
   });
 
+  const initialWasStopped = initialStatus ? initialStatus.active === false : false;
+
   useEffect(() => {
     let isMounted = true;
 
@@ -18,6 +20,7 @@ export default function SiteController({ initialStatus }) {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache",
+            Pragma: "no-cache",
           },
         });
 
@@ -25,9 +28,10 @@ export default function SiteController({ initialStatus }) {
           const data = await res.json();
           if (isMounted && typeof data.active === "boolean") {
             setSiteState((prevState) => {
-              // If it was stopped and now turned active, reload immediately to fetch full HTML
-              if (prevState.active === false && data.active === true) {
-                window.location.reload();
+              // If it was loaded as stopped and now turned active, force hard reload with cache-buster
+              if (initialWasStopped && data.active === true) {
+                window.location.href =
+                  window.location.pathname + "?_ts=" + Date.now();
                 return prevState;
               }
 
@@ -47,14 +51,14 @@ export default function SiteController({ initialStatus }) {
     // Check status immediately
     checkStatus();
 
-    // Check status every 2 seconds
-    const interval = setInterval(checkStatus, 2000);
+    // Check status every 1.5 seconds
+    const interval = setInterval(checkStatus, 1500);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [initialWasStopped]);
 
   if (siteState.active) {
     return null;

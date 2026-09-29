@@ -30,18 +30,23 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GIST_ID = "1f3b21eaaf65b90e0e21c7be4799ec76";
+
 async function getSiteStatus() {
   try {
-    const res = await fetch(
-      "https://api.github.com/gists/1f3b21eaaf65b90e0e21c7be4799ec76",
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "VacuumStoreApp",
-        },
-        cache: "no-store",
-      }
-    );
+    const headers = {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "VacuumStoreApp",
+    };
+    if (GITHUB_TOKEN) {
+      headers["Authorization"] = `Bearer ${GITHUB_TOKEN}`;
+    }
+
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers,
+      cache: "no-store",
+    });
 
     if (res.ok) {
       const data = await res.json();
