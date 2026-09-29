@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
+const REALTIME_TOPIC = "vacuum_store_status_x914_fast";
 
 export default function SiteController({ initialStatus }) {
   const [siteState, setSiteState] = useState({
@@ -10,10 +12,58 @@ export default function SiteController({ initialStatus }) {
   });
 
   const initialWasStopped = initialStatus ? initialStatus.active === false : false;
+  const isReloadingRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
+    let ws = null;
+    let eventSource = null;
 
+    function applyUpdate(data) {
+      if (!isMounted || !data || typeof data.active !== "boolean") return;
+
+      if (initialWasStopped && data.active === true && !isReloadingRef.current) {
+        isReloadingRef.current = true;
+        window.location.href = window.location.pathname + "?_ts=" + Date.now();
+        return;
+      }
+
+      setSiteState({
+        active: data.active,
+        message: data.message || "مرحبا",
+        loaded: true,
+      });
+    }
+
+    // 1. Instant WebSocket connection (Delivers updates in ~20ms)
+    try {
+      ws = new WebSocket(`wss://ntfy.sh/${REALTIME_TOPIC}/ws`);
+      ws.onmessage = (event) => {
+        try {
+          const raw = JSON.parse(event.data);
+          if (raw.event === "message" && raw.message) {
+            const parsed = JSON.parse(raw.message);
+            applyUpdate(parsed);
+          }
+        } catch (e) {}
+      };
+    } catch (e) {}
+
+    // 2. Secondary SSE stream
+    try {
+      eventSource = new EventSource(`https://ntfy.sh/${REALTIME_TOPIC}/sse`);
+      eventSource.onmessage = (event) => {
+        try {
+          const raw = JSON.parse(event.data);
+          if (raw.event === "message" && raw.message) {
+            const parsed = JSON.parse(raw.message);
+            applyUpdate(parsed);
+          }
+        } catch (e) {}
+      };
+    } catch (e) {}
+
+    // 3. Fallback polling every 2 seconds
     async function checkStatus() {
       try {
         const res = await fetch("/api/site-status?t=" + Date.now(), {
@@ -26,36 +76,26 @@ export default function SiteController({ initialStatus }) {
 
         if (res.ok) {
           const data = await res.json();
-          if (isMounted && typeof data.active === "boolean") {
-            setSiteState((prevState) => {
-              // If it was loaded as stopped and now turned active, force hard reload with cache-buster
-              if (initialWasStopped && data.active === true) {
-                window.location.href =
-                  window.location.pathname + "?_ts=" + Date.now();
-                return prevState;
-              }
-
-              return {
-                active: data.active,
-                message: data.message || "مرحبا",
-                loaded: true,
-              };
-            });
-          }
+          applyUpdate(data);
         }
-      } catch (err) {
-        // Network glitch, keep current state
-      }
+      } catch (err) {}
     }
 
-    // Check status immediately
     checkStatus();
-
-    // Check status every 1.5 seconds
-    const interval = setInterval(checkStatus, 1500);
+    const interval = setInterval(checkStatus, 2000);
 
     return () => {
       isMounted = false;
+      if (ws) {
+        try {
+          ws.close();
+        } catch (e) {}
+      }
+      if (eventSource) {
+        try {
+          eventSource.close();
+        } catch (e) {}
+      }
       clearInterval(interval);
     };
   }, [initialWasStopped]);

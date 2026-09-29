@@ -89,11 +89,6 @@ export default function ProductsSection({ onAddToCart }) {
               sizes="(max-width: 768px) 100vw, 768px"
               priority
             />
-            {/* Guarantee Tag */}
-            <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 bg-[#0B1834]/90 backdrop-blur-xs text-[#E8C872] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#C59B3F]/40 shadow-md">
-              <span>✨</span>
-              <span>Qualité Garantie</span>
-            </div>
           </div>
 
           {/* ─── ALL CONTENT BELOW THE IMAGE ─── */}
