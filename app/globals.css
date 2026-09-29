@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════
+   VacuumStore — Premium Vacuum Storage Bags
+   Design: Exact Match to Reference Image
+   Palette: Deep Navy (#0B1B34) + Mustard Gold (#C59B3F)
+   NO GLASSMORPHISM — Flat, Clean, Crisp
+   ═══════════════════════════════════════════ */
+
+@theme inline {
+  --color-background: #ffffff;
+  --color-foreground: #1a1a2e;
+  --font-sans: var(--font-geist-sans);
+  --font-serif: 'Playfair Display', Georgia, serif;
+
+  /* Deep Navy Brand Palette */
+  --color-navy: #0B1B34;
+  --color-navy-dark: #071324;
+  --color-navy-light: #132B4F;
+
+  /* Elegant Mustard / Gold */
+  --color-gold: #C59B3F;
+  --color-gold-hover: #b58b32;
+  --color-gold-light: #F4E8C1;
+
+  /* Neutrals */
+  --color-white: #ffffff;
+  --color-off-white: #F8F9FA;
+  --color-warm-bg: #FAF9F6;
+  --color-light-gray: #E5E7EB;
+  --color-mid-gray: #9CA3AF;
+  --color-dark-gray: #4B5563;
+
+  /* Stars & Alerts */
+  --color-star: #F59E0B;
+  --color-success: #10B981;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #1a1a2e;
+}
+
+body {
+  background: #ffffff;
+  color: #1a1a2e;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Serif Headings */
+.font-serif {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* Arabic Typography */
+.rtl-text {
+  direction: rtl;
+  font-family: 'Noto Sans Arabic', var(--font-sans), system-ui, sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C59B3F;
+  border-radius: 4px;
+}
