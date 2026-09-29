@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 
 const REALTIME_TOPIC = "vacuum_store_ctrl_914_x7a9";
 
-export default function SiteController() {
+export default function SiteController({ initialStatus }) {
   const [siteState, setSiteState] = useState({
-    active: true,
-    message: "مرحبا",
+    active: initialStatus ? initialStatus.active : false,
+    message: initialStatus?.message || "مرحبا",
     loaded: true,
   });
 
@@ -38,11 +38,9 @@ export default function SiteController() {
             } catch (err) {}
           }
         }
-      } catch (err) {
-        // Fallback to internal API route if direct fetch fails
-      }
+      } catch (err) {}
 
-      // Fallback
+      // Fallback API route
       try {
         const fallbackRes = await fetch("/api/site-status?t=" + Date.now(), {
           cache: "no-store",
@@ -60,10 +58,7 @@ export default function SiteController() {
       } catch (e) {}
     }
 
-    // Run immediately on page load
-    fetchInstantStatus();
-
-    // 2. Real-Time SSE (Server-Sent Events) - Instant reaction without browser reload
+    // 2. Real-Time SSE (Instant Event Delivery without reload)
     let eventSource = null;
     try {
       eventSource = new EventSource(`https://ntfy.sh/${REALTIME_TOPIC}/sse`);
@@ -85,16 +80,12 @@ export default function SiteController() {
           console.error("SSE parse error:", e);
         }
       };
-
-      eventSource.onerror = () => {
-        // Automatic native reconnection
-      };
     } catch (e) {
-      console.error("EventSource failed:", e);
+      console.error("EventSource initialization failed:", e);
     }
 
-    // 3. Fast Backup Polling every 2 seconds
-    const interval = setInterval(fetchInstantStatus, 2000);
+    // 3. Fast Backup Polling every 2.5 seconds
+    const interval = setInterval(fetchInstantStatus, 2500);
 
     return () => {
       isMounted = false;
@@ -127,17 +118,12 @@ export default function SiteController() {
         padding: "1.5rem",
         textAlign: "center",
         color: "#ffffff",
-        animation: "fadeInStop 0.2s ease-out forwards",
       }}
     >
       <style>{`
-        @keyframes fadeInStop {
-          0% { opacity: 0; transform: scale(0.97); }
-          100% { opacity: 1; transform: scale(1); }
-        }
         @keyframes pulseAlert {
-          0%, 100% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); border-color: #ef4444; }
-          50% { box-shadow: 0 0 60px rgba(239, 68, 68, 0.8); border-color: #f87171; }
+          0%, 100% { box-shadow: 0 0 35px rgba(239, 68, 68, 0.45); border-color: #ef4444; }
+          50% { box-shadow: 0 0 65px rgba(239, 68, 68, 0.85); border-color: #f87171; }
         }
       `}</style>
 
