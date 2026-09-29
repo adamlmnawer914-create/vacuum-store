@@ -2,62 +2,108 @@
 
 import { useState, useEffect } from "react";
 
+const REALTIME_TOPIC = "vacuum_store_ctrl_914_x7a9";
+
 export default function SiteController() {
   const [siteState, setSiteState] = useState({
     active: true,
     message: "مرحبا",
-    loaded: false,
+    loaded: true,
   });
 
   useEffect(() => {
     let isMounted = true;
-    let hasAlerted = false;
 
-    async function checkStatus() {
+    // 1. Instant Polling Function
+    async function fetchInstantStatus() {
       try {
-        const res = await fetch("/api/site-status?t=" + Date.now(), {
+        const res = await fetch(`https://ntfy.sh/${REALTIME_TOPIC}/raw?poll=1`, {
           cache: "no-store",
         });
         if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            const isSiteActive = data.active !== false;
-            setSiteState({
-              active: isSiteActive,
-              message: data.message || "مرحبا",
-              loaded: true,
-            });
-
-            if (!isSiteActive && !hasAlerted) {
-              hasAlerted = true;
-              try {
-                alert(data.message || "مرحبا");
-              } catch (e) {
-                // Ignore alert block
+          const raw = await res.text();
+          if (raw && raw.trim()) {
+            const lines = raw.trim().split("\n");
+            const lastLine = lines[lines.length - 1];
+            try {
+              const parsed = JSON.parse(lastLine);
+              if (isMounted && typeof parsed.active === "boolean") {
+                setSiteState({
+                  active: parsed.active,
+                  message: parsed.message || "مرحبا",
+                  loaded: true,
+                });
+                return;
               }
-            } else if (isSiteActive) {
-              hasAlerted = false;
-            }
+            } catch (err) {}
           }
         }
       } catch (err) {
-        // Silently keep current state if network glitch
+        // Fallback to internal API route if direct fetch fails
       }
+
+      // Fallback
+      try {
+        const fallbackRes = await fetch("/api/site-status?t=" + Date.now(), {
+          cache: "no-store",
+        });
+        if (fallbackRes.ok) {
+          const data = await fallbackRes.json();
+          if (isMounted && typeof data.active === "boolean") {
+            setSiteState({
+              active: data.active,
+              message: data.message || "مرحبا",
+              loaded: true,
+            });
+          }
+        }
+      } catch (e) {}
     }
 
-    // Initial check
-    checkStatus();
+    // Run immediately on page load
+    fetchInstantStatus();
 
-    // Recheck periodically every 5 seconds
-    const interval = setInterval(checkStatus, 5000);
+    // 2. Real-Time SSE (Server-Sent Events) - Instant reaction without browser reload
+    let eventSource = null;
+    try {
+      eventSource = new EventSource(`https://ntfy.sh/${REALTIME_TOPIC}/sse`);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.event === "message" && data.message) {
+            const parsed = JSON.parse(data.message);
+            if (isMounted && typeof parsed.active === "boolean") {
+              setSiteState({
+                active: parsed.active,
+                message: parsed.message || "مرحبا",
+                loaded: true,
+              });
+            }
+          }
+        } catch (e) {
+          console.error("SSE parse error:", e);
+        }
+      };
+
+      eventSource.onerror = () => {
+        // Automatic native reconnection
+      };
+    } catch (e) {
+      console.error("EventSource failed:", e);
+    }
+
+    // 3. Fast Backup Polling every 2 seconds
+    const interval = setInterval(fetchInstantStatus, 2000);
 
     return () => {
       isMounted = false;
+      if (eventSource) eventSource.close();
       clearInterval(interval);
     };
   }, []);
 
-  if (!siteState.loaded || siteState.active) {
+  if (siteState.active) {
     return null;
   }
 
@@ -81,27 +127,39 @@ export default function SiteController() {
         padding: "1.5rem",
         textAlign: "center",
         color: "#ffffff",
+        animation: "fadeInStop 0.2s ease-out forwards",
       }}
     >
+      <style>{`
+        @keyframes fadeInStop {
+          0% { opacity: 0; transform: scale(0.97); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes pulseAlert {
+          0%, 100% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); border-color: #ef4444; }
+          50% { box-shadow: 0 0 60px rgba(239, 68, 68, 0.8); border-color: #f87171; }
+        }
+      `}</style>
+
       <div
         style={{
           backgroundColor: "#0a0a0a",
-          border: "1px solid #262626",
-          borderRadius: "1rem",
-          padding: "2rem 2.5rem",
-          maxWidth: "420px",
-          width: "100%",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.9)",
+          border: "2px solid #ef4444",
+          borderRadius: "1.25rem",
+          padding: "2.5rem 2rem",
+          maxWidth: "440px",
+          width: "92%",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           gap: "1.25rem",
+          animation: "pulseAlert 2s infinite ease-in-out",
         }}
       >
-        <div style={{ fontSize: "3.5rem", lineHeight: 1 }}>⚠️</div>
+        <div style={{ fontSize: "3.75rem", lineHeight: 1 }}>⚠️</div>
         <div
           style={{
-            fontSize: "1.75rem",
+            fontSize: "1.85rem",
             fontWeight: 800,
             color: "#f87171",
             letterSpacing: "0.025em",
@@ -114,9 +172,9 @@ export default function SiteController() {
             fontSize: "1.5rem",
             fontWeight: 700,
             color: "#ffffff",
-            padding: "0.5rem 1.5rem",
+            padding: "0.75rem 2rem",
             backgroundColor: "#171717",
-            borderRadius: "0.75rem",
+            borderRadius: "0.85rem",
             border: "1px solid #333333",
             width: "100%",
           }}
