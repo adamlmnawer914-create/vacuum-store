@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from "react";
 
-const REALTIME_TOPIC = "vacuum_store_ctrl_914_x7a9";
-
 export default function SiteController({ initialStatus }) {
   const [siteState, setSiteState] = useState({
-    active: initialStatus ? initialStatus.active : false,
+    active: initialStatus ? initialStatus.active : true,
     message: initialStatus?.message || "مرحبا",
     loaded: true,
   });
@@ -14,86 +12,46 @@ export default function SiteController({ initialStatus }) {
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Instant Polling Function
-    async function fetchInstantStatus() {
+    async function checkStatus() {
       try {
-        const res = await fetch(`https://ntfy.sh/${REALTIME_TOPIC}/raw?poll=1`, {
+        const res = await fetch("/api/site-status?t=" + Date.now(), {
           cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+          },
         });
-        if (res.ok) {
-          const raw = await res.text();
-          if (raw && raw.trim()) {
-            const lines = raw.trim().split("\n");
-            const lastLine = lines[lines.length - 1];
-            try {
-              const parsed = JSON.parse(lastLine);
-              if (isMounted && typeof parsed.active === "boolean") {
-                setSiteState({
-                  active: parsed.active,
-                  message: parsed.message || "مرحبا",
-                  loaded: true,
-                });
-                return;
-              }
-            } catch (err) {}
-          }
-        }
-      } catch (err) {}
 
-      // Fallback API route
-      try {
-        const fallbackRes = await fetch("/api/site-status?t=" + Date.now(), {
-          cache: "no-store",
-        });
-        if (fallbackRes.ok) {
-          const data = await fallbackRes.json();
+        if (res.ok) {
+          const data = await res.json();
           if (isMounted && typeof data.active === "boolean") {
-            setSiteState({
-              active: data.active,
-              message: data.message || "مرحبا",
-              loaded: true,
+            setSiteState((prevState) => {
+              // If it was stopped and now turned active, reload immediately to fetch full HTML
+              if (prevState.active === false && data.active === true) {
+                window.location.reload();
+                return prevState;
+              }
+
+              return {
+                active: data.active,
+                message: data.message || "مرحبا",
+                loaded: true,
+              };
             });
           }
         }
-      } catch (e) {}
+      } catch (err) {
+        // Network glitch, keep current state
+      }
     }
 
-    // 2. Real-Time SSE (Instant Event Delivery without reload)
-    let eventSource = null;
-    try {
-      eventSource = new EventSource(`https://ntfy.sh/${REALTIME_TOPIC}/sse`);
+    // Check status immediately
+    checkStatus();
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.event === "message" && data.message) {
-            const parsed = JSON.parse(data.message);
-            if (isMounted && typeof parsed.active === "boolean") {
-              if (initialStatus?.active === false && parsed.active === true) {
-                window.location.reload();
-                return;
-              }
-              setSiteState({
-                active: parsed.active,
-                message: parsed.message || "مرحبا",
-                loaded: true,
-              });
-            }
-          }
-        } catch (e) {
-          console.error("SSE parse error:", e);
-        }
-      };
-    } catch (e) {
-      console.error("EventSource initialization failed:", e);
-    }
-
-    // 3. Fast Backup Polling every 2.5 seconds
-    const interval = setInterval(fetchInstantStatus, 2500);
+    // Check status every 2 seconds
+    const interval = setInterval(checkStatus, 2000);
 
     return () => {
       isMounted = false;
-      if (eventSource) eventSource.close();
       clearInterval(interval);
     };
   }, []);
@@ -124,13 +82,6 @@ export default function SiteController({ initialStatus }) {
         color: "#ffffff",
       }}
     >
-      <style>{`
-        @keyframes pulseAlert {
-          0%, 100% { box-shadow: 0 0 35px rgba(239, 68, 68, 0.45); border-color: #ef4444; }
-          50% { box-shadow: 0 0 65px rgba(239, 68, 68, 0.85); border-color: #f87171; }
-        }
-      `}</style>
-
       <div
         style={{
           backgroundColor: "#0a0a0a",
@@ -143,7 +94,7 @@ export default function SiteController({ initialStatus }) {
           flexDirection: "column",
           alignItems: "center",
           gap: "1.25rem",
-          animation: "pulseAlert 2s infinite ease-in-out",
+          boxShadow: "0 0 50px rgba(239, 68, 68, 0.6)",
         }}
       >
         <div style={{ fontSize: "3.75rem", lineHeight: 1 }}>⚠️</div>

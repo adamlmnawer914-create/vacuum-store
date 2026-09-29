@@ -32,21 +32,22 @@ export const revalidate = 0;
 
 async function getSiteStatus() {
   try {
-    const timestamp = Date.now();
-    const url = `https://gist.githubusercontent.com/adamlmnawer914-create/1f3b21eaaf65b90e0e21c7be4799ec76/raw/vacuum_store_status.json?t=${timestamp}`;
-    const res = await fetch(url, {
-      cache: "no-store",
-      headers: {
-        "User-Agent": "VacuumStoreStatusCheck/1.0",
-      },
-    });
+    const res = await fetch(
+      "https://api.github.com/gists/1f3b21eaaf65b90e0e21c7be4799ec76",
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+          "User-Agent": "VacuumStoreApp",
+        },
+        cache: "no-store",
+      }
+    );
 
     if (res.ok) {
-      const raw = await res.text();
-      const clean = raw.replace(/^\uFEFF/, "").trim();
-      const parsed = JSON.parse(clean);
-      if (typeof parsed.active === "boolean") {
-        return parsed;
+      const data = await res.json();
+      const raw = data.files?.["vacuum_store_status.json"]?.content;
+      if (raw) {
+        return JSON.parse(raw.replace(/^\uFEFF/, "").trim());
       }
     }
   } catch (err) {}
